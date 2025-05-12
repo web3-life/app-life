@@ -92,3 +92,12 @@ body {
     @apply bg-background text-foreground;
   }
 }
+
+.wallet-adapter-button {
+  border-radius: 8px !important;
+  padding: 8px 16px !important;
+}
+
+.wallet-adapter-button:hover {
+  background-color: #4527a0 !important;
+}

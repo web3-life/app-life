@@ -5,15 +5,6 @@ import Link from "next/link";
 import Image from "next/image";
 import { Menu, X } from "lucide-react";
 import WalletConnect from "./wallet-connect";
-import { WalletMultiButton } from "@solana/wallet-adapter-react-ui";
-
-const WalletConnectButton = () => {
-  return (
-    <WalletMultiButton className="wallet-button">
-      Connect Wallet
-    </WalletMultiButton>
-  );
-};
 
 export default function Header() {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
@@ -56,7 +47,7 @@ export default function Header() {
           </Link>
         </nav>
 
-        <WalletConnectButton />
+        <WalletConnect />
         {/* Mobile Menu Button */}
         <button
           className="md:hidden text-gray-300"
