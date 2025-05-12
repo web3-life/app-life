@@ -13,10 +13,7 @@ export function Providers({ children }: { children: React.ReactNode }) {
   return (
     <ConnectionProvider endpoint="https://api.mainnet-beta.solana.com">
       <WalletProvider wallets={wallets} autoConnect>
-        <WalletModalProvider>
-          {/* 你的应用内容 */}
-          {children}
-        </WalletModalProvider>
+        <WalletModalProvider>{children}</WalletModalProvider>
       </WalletProvider>
     </ConnectionProvider>
   );
