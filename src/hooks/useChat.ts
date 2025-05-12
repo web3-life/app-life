@@ -357,7 +357,6 @@ export function useChat() {
         }
         
         console.log(`Stream response completed, total length: ${fullResponse.length} characters`);
-        console.log('Original response:', rawResponse);
       } catch (streamError) {
         console.error('Stream read error:', streamError);
         
