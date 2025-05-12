@@ -1,12 +1,16 @@
 "use client";
 
 import { useWallet, useConnection } from "@solana/wallet-adapter-react";
-import { PublicKey, LAMPORTS_PER_SOL } from "@solana/web3.js";
-import { Jupiter } from "@jup-ag/core";
+import {
+  PublicKey,
+  LAMPORTS_PER_SOL,
+  VersionedTransaction,
+} from "@solana/web3.js";
 import { WalletMultiButton } from "@solana/wallet-adapter-react-ui";
 import React, { useState, useEffect } from "react";
+import { createJupiterApiClient } from "@jup-ag/api";
+import { getAccount, getAssociatedTokenAddress } from "@solana/spl-token";
 
-// Use a type-safe JSBI solution
 const JSBI = {
   BigInt: (value: number | string): any => BigInt(value),
 };
@@ -33,9 +37,21 @@ const SolanaSwapComponent: React.FC = () => {
         // 获取SOL余额
         const solBalance = await connection.getBalance(publicKey);
         setBalance(solBalance / 1e9);
-
-        // Skip token balance check for now
-        setTokenBalance(0);
+        const ata = await getAssociatedTokenAddress(outputMint, publicKey);
+        try {
+          const tokenAccount = await getAccount(connection, ata);
+          setTokenBalance(Number(tokenAccount.amount) / 1e6);
+        } catch (error) {
+          // 如果 ATA 不存在，余额为 0
+          if (
+            error instanceof Error &&
+            error.message.includes("Account does not exist")
+          ) {
+            setTokenBalance(0);
+          } else {
+            throw error;
+          }
+        }
       } catch (error) {
         console.error("Error fetching balances:", error);
       }
@@ -54,35 +70,33 @@ const SolanaSwapComponent: React.FC = () => {
     setMessage("");
     try {
       // 1. 初始化 Jupiter
-      const jupiter = await Jupiter.load({
-        connection, // Solana 连接对象
-        cluster: "mainnet-beta", // Solana network
-        user: publicKey, // 用户钱包地址
+      const jupiter = createJupiterApiClient();
+
+      const quote = await jupiter.quoteGet({
+        inputMint: "So11111111111111111111111111111111111111112", // SOL
+        outputMint: "7YdwpERJjzw7UVojxLpvu5ycKBRdYaxaKn4HvoHLpump", // 目标代币
+        amount: parseFloat(amount) * 1e9,
+        slippageBps: 100,
       });
 
-      const amountInLamports = Math.floor(
-        parseFloat(amount) * LAMPORTS_PER_SOL
+      const swapResult = await jupiter.swapPost({
+        swapRequest: {
+          quoteResponse: quote,
+          userPublicKey: publicKey.toString(),
+          wrapAndUnwrapSol: true,
+          dynamicComputeUnitLimit: true,
+        },
+      });
+
+      const { swapTransaction } = swapResult;
+
+      const transaction = VersionedTransaction.deserialize(
+        Buffer.from(swapTransaction, "base64")
       );
 
-      const routes = await jupiter.computeRoutes({
-        inputMint,
-        outputMint,
-        amount: JSBI.BigInt(amountInLamports),
-        slippageBps: 100, // 1% 滑点容忍 (100 basis points = 1%)
-      });
+      const signedTx = await window.solana.signTransaction(transaction);
+      const txid = await connection.sendRawTransaction(signedTx.serialize());
 
-      if (!routes.routesInfos || routes.routesInfos.length === 0) {
-        throw new Error("没有可用的兑换路径");
-      }
-
-      // 3. 执行兑换
-      const { execute } = await jupiter.exchange({
-        routeInfo: routes.routesInfos[0], // 选择最优路径
-      });
-
-      // console.log(routes.routesInfos[0]);
-
-      const txid = await execute(); // 发送交易
       setMessage(`兑换成功！交易ID: ${txid}`);
 
       // 4. 刷新余额
