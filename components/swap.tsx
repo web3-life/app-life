@@ -10,6 +10,10 @@ import { WalletMultiButton } from "@solana/wallet-adapter-react-ui";
 import React, { useState, useEffect } from "react";
 import { createJupiterApiClient } from "@jup-ag/api";
 import { getAccount, getAssociatedTokenAddress } from "@solana/spl-token";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Card, CardContent } from "@/components/ui/card";
+import { ArrowDown, Wallet } from "lucide-react";
 
 const JSBI = {
   BigInt: (value: number | string): any => BigInt(value),
@@ -62,7 +66,7 @@ const SolanaSwapComponent: React.FC = () => {
 
   const handleSwap = async () => {
     if (!publicKey || !amount) {
-      setMessage("请连接钱包并输入金额");
+      setMessage("Please connect wallet and enter an amount");
       return;
     }
 
@@ -97,88 +101,142 @@ const SolanaSwapComponent: React.FC = () => {
       const signedTx = await window.solana.signTransaction(transaction);
       const txid = await connection.sendRawTransaction(signedTx.serialize());
 
-      setMessage(`兑换成功！交易ID: ${txid}`);
+      setMessage(`Swap successful! Transaction ID: ${txid}`);
 
       // 4. 刷新余额
       const solBalance = await connection.getBalance(publicKey);
       setBalance(solBalance / LAMPORTS_PER_SOL);
     } catch (error: any) {
-      setMessage(`兑换失败: ${error.message}`);
+      setMessage(`Swap failed: ${error.message}`);
     } finally {
       setIsLoading(false);
     }
   };
 
   return (
-    <div className="max-w-md mx-auto p-6 dark:bg-gray-800 rounded-lg shadow-lg">
-      <h2 className="text-2xl text-white font-bold mb-4 dark:text-white">
-        SOL 兑换代币
-      </h2>
+    <section className="py-16">
+      <div className="container mx-auto px-4">
+        <div className="max-w-md mx-auto">
+          <Card className="bg-gray-900/50 border-gray-800 overflow-hidden text-white">
+            <CardContent className="p-6">
+              <h2 className="text-2xl font-bold mb-6 text-center bg-gradient-to-r from-purple-400 to-pink-500 bg-clip-text text-transparent">
+                Swap SOL for Life++ Tokens
+              </h2>
 
-      {!publicKey ? (
-        <div className="text-center py-4">
-          <WalletMultiButton className="bg-purple-600 hover:bg-purple-700 text-white font-medium py-2 px-4 rounded-lg" />
+              {!publicKey ? (
+                <div className="text-center py-4">
+                  <WalletMultiButton className="bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700 text-white font-medium py-3 px-6 rounded-lg" />
+                </div>
+              ) : (
+                <>
+                  <div className="mb-6 text-white">
+                    <div className="flex justify-between mb-2">
+                      <span className="text-gray-300">My SOL Balance</span>
+                      <span className="font-medium text-white">{balance.toFixed(4)} SOL</span>
+                    </div>
+                    <div className="flex justify-between mb-4">
+                      <span className="text-gray-300">My Life++ Balance</span>
+                      <span className="font-medium text-white">{tokenBalance.toFixed(0)} Life++</span>
+                    </div>
+
+                    <div className="bg-gray-800/50 rounded-lg p-4 mb-4">
+                      <div className="flex justify-between mb-1">
+                        <label htmlFor="amount" className="block text-sm font-medium text-gray-300">
+                          From
+                        </label>
+                        <span className="text-sm text-gray-400">Available: {balance.toFixed(4)} SOL</span>
+                      </div>
+                      <div className="flex items-center">
+                        <Input
+                          id="amount"
+                          type="number"
+                          value={amount}
+                          onChange={(e) => setAmount(e.target.value)}
+                          className="bg-transparent border-none text-white focus-visible:ring-purple-500 focus-visible:ring-offset-0"
+                          min="0.1"
+                          step="0.1"
+                          placeholder="Enter SOL amount"
+                        />
+                        <div className="flex items-center gap-2 ml-2">
+                          <div className="w-6 h-6 rounded-full bg-blue-500 flex items-center justify-center">
+                            <span className="text-xs font-bold text-white">S</span>
+                          </div>
+                          <span className="font-medium text-white">SOL</span>
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="flex justify-center -my-2 relative z-10">
+                      <div className="bg-gray-900 p-2 rounded-full border border-gray-700">
+                        <ArrowDown className="h-4 w-4 text-gray-400" />
+                      </div>
+                    </div>
+
+                    <div className="bg-gray-800/50 rounded-lg p-4 mt-2 mb-4">
+                      <div className="flex justify-between mb-1">
+                        <label className="block text-sm font-medium text-gray-300">To (estimated)</label>
+                      </div>
+                      <div className="flex items-center">
+                        <Input
+                          readOnly
+                          value={(Number.parseFloat(amount) || 0) * 1000}
+                          className="bg-transparent border-none text-white focus-visible:ring-0"
+                          placeholder="0"
+                        />
+                        <div className="flex items-center gap-2 ml-2">
+                          <div className="w-6 h-6 rounded-full bg-gradient-to-r from-purple-500 to-pink-500 flex items-center justify-center">
+                            <span className="text-xs font-bold text-white">L++</span>
+                          </div>
+                          <span className="font-medium text-white">Life++</span>
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="text-sm text-gray-400 mb-4">
+                      <div className="flex justify-between">
+                        <span>Exchange Rate</span>
+                        <span>1 SOL = 1,000 Life++</span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span>Network Fee</span>
+                        <span>~0.000005 SOL</span>
+                      </div>
+                    </div>
+                  </div>
+
+                  <Button
+                    onClick={handleSwap}
+                    disabled={isLoading}
+                    className="w-full py-6 bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700 text-white font-medium rounded-lg"
+                  >
+                    {isLoading ? (
+                      <div className="flex items-center justify-center space-x-2">
+                        <div className="w-5 h-5 border-t-2 border-b-2 border-white rounded-full animate-spin"></div>
+                        <span>Processing...</span>
+                      </div>
+                    ) : (
+                      "Swap Now"
+                    )}
+                  </Button>
+
+                  {message && (
+                    <div
+                      className={`mt-4 p-3 rounded-lg overflow-hidden ${
+                        message.includes("failed")
+                          ? "bg-red-900/20 text-red-400 border border-red-900/50"
+                          : "bg-green-900/20 text-green-400 border border-green-900/50"
+                      }`}
+                    >
+                      {message}
+                    </div>
+                  )}
+                </>
+              )}
+            </CardContent>
+          </Card>
         </div>
-      ) : (
-        <>
-          <div className="mb-6">
-            <div className="flex justify-between mb-2">
-              <span className="text-white dark:text-gray-300">我的SOL余额</span>
-              <span className="font-medium">{balance.toFixed(4)} SOL</span>
-            </div>
-            <div className="flex justify-between mb-4">
-              <span className="text-white dark:text-gray-300">
-                我的代币余额
-              </span>
-              <span className="font-medium">
-                {tokenBalance.toFixed(4)} Tokens
-              </span>
-            </div>
-
-            <div className="mb-4">
-              <label
-                htmlFor="amount"
-                className="block text-sm font-medium mb-1"
-              >
-                兑换金额 (SOL)
-              </label>
-              <input
-                id="amount"
-                type="number"
-                value={amount}
-                onChange={(e) => setAmount(e.target.value)}
-                className="w-full text-black px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500"
-                min="0.1"
-                step="0.1"
-                placeholder="输入SOL数量"
-              />
-            </div>
-          </div>
-
-          <button
-            onClick={handleSwap}
-            disabled={isLoading}
-            className={`w-full py-3 px-4 rounded-lg font-medium text-white ${
-              isLoading ? "bg-purple-400" : "bg-purple-600 hover:bg-purple-700"
-            } transition-colors`}
-          >
-            {isLoading ? "处理中..." : "立即兑换"}
-          </button>
-
-          {message && (
-            <div
-              className={`mt-4 p-3 rounded-lg overflow-hidden ${
-                message.includes("失败")
-                  ? "bg-red-100 text-red-700"
-                  : "bg-green-100 text-green-700"
-              }`}
-            >
-              {message}
-            </div>
-          )}
-        </>
-      )}
-    </div>
+      </div>
+    </section>
   );
 };
 

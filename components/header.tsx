@@ -14,7 +14,7 @@ export default function Header() {
       <div className="container mx-auto px-4 py-3 flex items-center justify-between">
         <div className="flex items-center gap-3">
           <Image
-            src="/placeholder.svg?height=40&width=40"
+            src="/logo.jpg"
             alt="Life++ Logo"
             width={40}
             height={40}
@@ -28,22 +28,22 @@ export default function Header() {
         {/* Desktop Navigation */}
         <nav className="hidden md:flex items-center gap-8">
           <Link
-            href="#features"
+            href="/create-agent"
             className="text-gray-300 hover:text-white transition"
           >
-            Features
+            Create Agent
           </Link>
           <Link
-            href="#about"
+            href="/chat"
             className="text-gray-300 hover:text-white transition"
           >
-            About
+            Chat
           </Link>
           <Link
-            href="#faq"
+            href="/profile"
             className="text-gray-300 hover:text-white transition"
           >
-            FAQ
+            Profile
           </Link>
         </nav>
 
