@@ -13,7 +13,7 @@ import { getAccount, getAssociatedTokenAddress } from "@solana/spl-token";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent } from "@/components/ui/card";
-import { ArrowDown, Wallet } from "lucide-react";
+import { ArrowDown, Wallet, RefreshCw } from "lucide-react";
 
 const JSBI = {
   BigInt: (value: number | string): any => BigInt(value),
@@ -32,9 +32,18 @@ const SolanaSwapComponent: React.FC = () => {
   const [message, setMessage] = useState<string>("");
   const [balance, setBalance] = useState<number>(0);
   const [tokenBalance, setTokenBalance] = useState<number>(0);
+  const [estimatedAmount, setEstimatedAmount] = useState<string>("0");
+  const [exchangeRate, setExchangeRate] = useState<string>("0");
+  const [isLoadingQuote, setIsLoadingQuote] = useState<boolean>(false);
+  const [isMounted, setIsMounted] = useState<boolean>(false);
+
+  // 添加客户端挂载检查
+  useEffect(() => {
+    setIsMounted(true);
+  }, []);
 
   useEffect(() => {
-    if (!connection || !publicKey) return;
+    if (!connection || !publicKey || !isMounted) return;
 
     const fetchBalances = async () => {
       try {
@@ -62,7 +71,66 @@ const SolanaSwapComponent: React.FC = () => {
     };
 
     fetchBalances();
-  }, [publicKey, connection]);
+  }, [publicKey, connection, isMounted]);
+
+  // 获取实时的兑换率和估计数量
+  useEffect(() => {
+    if (!isMounted) return;
+    
+    const getEstimatedAmount = async () => {
+      if (!amount || isNaN(Number(amount)) || Number(amount) <= 0) {
+        setEstimatedAmount("0");
+        setExchangeRate("0");
+        return;
+      }
+
+      try {
+        setIsLoadingQuote(true);
+        const jupiter = createJupiterApiClient();
+        
+        // 获取实时报价
+        const quote = await jupiter.quoteGet({
+          inputMint: inputMint.toString(),
+          outputMint: outputMint.toString(),
+          amount: Math.floor(parseFloat(amount) * LAMPORTS_PER_SOL),
+          slippageBps: 100,
+        });
+        
+        if (quote && quote.outAmount) {
+          // 设置估计获得的代币数量（以合适的小数位显示）
+          const estimatedTokens = Number(quote.outAmount) / 1e6;
+          setEstimatedAmount(estimatedTokens.toLocaleString(undefined, {
+            maximumFractionDigits: 2,
+          }));
+          
+          // 计算并设置汇率（1 SOL = ? Life++）
+          const rate = estimatedTokens / parseFloat(amount);
+          setExchangeRate(rate.toLocaleString(undefined, {
+            maximumFractionDigits: 2,
+          }));
+        }
+      } catch (error) {
+        console.error("Error getting quote:", error);
+        // 如果获取实时数据失败，使用默认兑换率
+        const defaultRate = 1000;
+        const defaultEstimate = parseFloat(amount) * defaultRate;
+        setEstimatedAmount(defaultEstimate.toLocaleString(undefined, {
+          maximumFractionDigits: 2,
+        }));
+        setExchangeRate(defaultRate.toString());
+      } finally {
+        setIsLoadingQuote(false);
+      }
+    };
+
+    // 当金额变化时获取新的估计数量
+    getEstimatedAmount();
+
+    // 每60秒刷新一次报价，保持数据相对实时
+    const intervalId = setInterval(getEstimatedAmount, 60000);
+    
+    return () => clearInterval(intervalId);
+  }, [amount, isMounted]);
 
   const handleSwap = async () => {
     if (!publicKey || !amount) {
@@ -112,6 +180,63 @@ const SolanaSwapComponent: React.FC = () => {
       setIsLoading(false);
     }
   };
+
+  // 手动刷新兑换率
+  const refreshExchangeRate = async () => {
+    if (!amount || isNaN(Number(amount)) || Number(amount) <= 0) return;
+    
+    setIsLoadingQuote(true);
+    try {
+      const jupiter = createJupiterApiClient();
+      
+      const quote = await jupiter.quoteGet({
+        inputMint: inputMint.toString(),
+        outputMint: outputMint.toString(),
+        amount: Math.floor(parseFloat(amount) * LAMPORTS_PER_SOL),
+        slippageBps: 100,
+      });
+      
+      if (quote && quote.outAmount) {
+        const estimatedTokens = Number(quote.outAmount) / 1e6;
+        setEstimatedAmount(estimatedTokens.toLocaleString(undefined, {
+          maximumFractionDigits: 2,
+        }));
+        
+        const rate = estimatedTokens / parseFloat(amount);
+        setExchangeRate(rate.toLocaleString(undefined, {
+          maximumFractionDigits: 2,
+        }));
+      }
+    } catch (error) {
+      console.error("Error refreshing quote:", error);
+    } finally {
+      setIsLoadingQuote(false);
+    }
+  };
+
+  // 如果组件未挂载，则返回静态内容
+  if (!isMounted) {
+    return (
+      <section className="py-16">
+        <div className="container mx-auto px-4">
+          <div className="max-w-md mx-auto">
+            <Card className="bg-gray-900/50 border-gray-800 overflow-hidden text-white">
+              <CardContent className="p-6">
+                <h2 className="text-2xl font-bold mb-6 text-center bg-gradient-to-r from-purple-400 to-pink-500 bg-clip-text text-transparent">
+                  Swap SOL for Life++ Tokens
+                </h2>
+                <div className="text-center py-4">
+                  <Button disabled className="bg-gradient-to-r from-purple-600 to-pink-600 text-white font-medium py-3 px-6 rounded-lg">
+                    Connect Wallet
+                  </Button>
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+        </div>
+      </section>
+    );
+  }
 
   return (
     <section className="py-16">
@@ -175,11 +300,22 @@ const SolanaSwapComponent: React.FC = () => {
                     <div className="bg-gray-800/50 rounded-lg p-4 mt-2 mb-4">
                       <div className="flex justify-between mb-1">
                         <label className="block text-sm font-medium text-gray-300">To (estimated)</label>
+                        {isLoadingQuote && (
+                          <span className="text-xs text-purple-400 animate-pulse">Updating...</span>
+                        )}
+                        <button 
+                          onClick={refreshExchangeRate} 
+                          className="text-xs text-blue-400 hover:text-blue-300 flex items-center"
+                          disabled={isLoadingQuote}
+                        >
+                          <RefreshCw className="h-3 w-3 mr-1" />
+                          Refresh
+                        </button>
                       </div>
                       <div className="flex items-center">
                         <Input
                           readOnly
-                          value={(Number.parseFloat(amount) || 0) * 1000}
+                          value={estimatedAmount}
                           className="bg-transparent border-none text-white focus-visible:ring-0"
                           placeholder="0"
                         />
@@ -195,7 +331,7 @@ const SolanaSwapComponent: React.FC = () => {
                     <div className="text-sm text-gray-400 mb-4">
                       <div className="flex justify-between">
                         <span>Exchange Rate</span>
-                        <span>1 SOL = 1,000 Life++</span>
+                        <span>1 SOL = {exchangeRate} Life++</span>
                       </div>
                       <div className="flex justify-between">
                         <span>Network Fee</span>

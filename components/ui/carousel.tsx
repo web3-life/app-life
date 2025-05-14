@@ -58,6 +58,7 @@ const Carousel = React.forwardRef<
     },
     ref
   ) => {
+    const [isMounted, setIsMounted] = React.useState<boolean>(false)
     const [carouselRef, api] = useEmblaCarousel(
       {
         ...opts,
@@ -67,6 +68,10 @@ const Carousel = React.forwardRef<
     )
     const [canScrollPrev, setCanScrollPrev] = React.useState(false)
     const [canScrollNext, setCanScrollNext] = React.useState(false)
+
+    React.useEffect(() => {
+      setIsMounted(true)
+    }, [])
 
     const onSelect = React.useCallback((api: CarouselApi) => {
       if (!api) {
@@ -99,15 +104,15 @@ const Carousel = React.forwardRef<
     )
 
     React.useEffect(() => {
-      if (!api || !setApi) {
+      if (!api || !setApi || !isMounted) {
         return
       }
 
       setApi(api)
-    }, [api, setApi])
+    }, [api, setApi, isMounted])
 
     React.useEffect(() => {
-      if (!api) {
+      if (!api || !isMounted) {
         return
       }
 
@@ -118,7 +123,21 @@ const Carousel = React.forwardRef<
       return () => {
         api?.off("select", onSelect)
       }
-    }, [api, onSelect])
+    }, [api, onSelect, isMounted])
+
+    if (!isMounted) {
+      return (
+        <div
+          ref={ref}
+          className={cn("relative", className)}
+          role="region"
+          aria-roledescription="carousel"
+          {...props}
+        >
+          {children}
+        </div>
+      )
+    }
 
     return (
       <CarouselContext.Provider

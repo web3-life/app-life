@@ -2,7 +2,7 @@ import { MastraClient } from "@mastra/client-js";
 
 // Create Mastra client instance, connecting to local server
 const client = new MastraClient({
-  baseUrl: "http://0.0.0.0:4111",
+  baseUrl: "http://localhost:4111",
 });
 
 // Function to log detailed API calls

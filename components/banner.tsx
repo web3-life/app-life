@@ -83,7 +83,7 @@ export default function Banner() {
               {/* AI Agent Image */}
               <div className="absolute w-full h-full flex items-center justify-center">
                 <Image
-                  src="/placeholder.svg?height=500&width=500"
+                  src="/banner.png"
                   alt="AI Agent Avatar"
                   width={500}
                   height={500}

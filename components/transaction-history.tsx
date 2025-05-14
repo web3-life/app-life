@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import {
   Pagination,
@@ -27,68 +27,108 @@ interface Transaction {
   timestamp: Date
 }
 
-// Generate mock data
-const generateMockTransactions = (): Transaction[] => {
-  const types: TransactionType[] = ["Deposit", "Exchange", "Chat"]
-  const statuses: TransactionStatus[] = ["Completed", "Pending Calculation"]
-  
-  // 创建两条固定的聊天记录，确保它们出现在第一页
-  const fixedTransactions: Transaction[] = [
-    {
-      id: "tx-fixed-1",
-      type: "Chat",
-      status: "Pending Calculation",
-      amount: -125,
-      timestamp: new Date(Date.now() - 20 * 60 * 1000), // 20分钟前
-    },
-    {
-      id: "tx-fixed-2",
-      type: "Chat",
-      status: "Pending Calculation",
-      amount: -220,
-      timestamp: new Date(Date.now() - 45 * 60 * 1000), // 45分钟前
-    }
-  ]
-
-  // 生成其他随机交易记录
-  const randomTransactions = Array.from({ length: 18 }, (_, i) => {
-    const type = types[Math.floor(Math.random() * types.length)]
-    // Deposits are always positive, Chat is always negative, Exchange can be either
-    let amount = 0
-    if (type === "Deposit") {
-      amount = Math.floor(Math.random() * 5000) + 500 // 500 to 5500
-    } else if (type === "Chat") {
-      amount = -(Math.floor(Math.random() * 300) + 50) // -50 to -350
-    } else {
-      // Exchange can be positive or negative
-      amount = (Math.random() > 0.5 ? 1 : -1) * (Math.floor(Math.random() * 2000) + 100) // ±100 to ±2100
-    }
-
-    return {
-      id: `tx-${i + 1}`,
-      type,
-      status: statuses[Math.floor(Math.random() * statuses.length)],
-      amount,
-      timestamp: new Date(Date.now() - Math.floor(Math.random() * 30) * 24 * 60 * 60 * 1000), // Random date within last 30 days
-    }
-  })
-
-  // 合并固定的交易记录和随机生成的交易记录
-  // 将固定的交易记录放在前面，确保它们出现在第一页
-  return [...fixedTransactions, ...randomTransactions]
-}
-
-const mockTransactions = generateMockTransactions()
+// 为了避免在服务端和客户端生成不同的事务数据，我们将定义固定的事务
+const fixedTransactions: Transaction[] = [
+  {
+    id: "tx-fixed-1",
+    type: "Chat",
+    status: "Pending Calculation",
+    amount: -125,
+    timestamp: new Date("2023-06-15T12:30:00"),
+  },
+  {
+    id: "tx-fixed-2",
+    type: "Chat",
+    status: "Pending Calculation",
+    amount: -220,
+    timestamp: new Date("2023-06-15T12:00:00"),
+  },
+  {
+    id: "tx-1",
+    type: "Deposit",
+    status: "Completed",
+    amount: 1000,
+    timestamp: new Date("2023-06-14T10:00:00"),
+  },
+  {
+    id: "tx-2",
+    type: "Exchange",
+    status: "Completed",
+    amount: -500,
+    timestamp: new Date("2023-06-13T15:30:00"),
+  },
+  {
+    id: "tx-3",
+    type: "Deposit",
+    status: "Completed",
+    amount: 2500,
+    timestamp: new Date("2023-06-12T09:15:00"),
+  },
+  {
+    id: "tx-4",
+    type: "Chat",
+    status: "Pending Calculation",
+    amount: -150,
+    timestamp: new Date("2023-06-11T16:45:00"),
+  },
+  {
+    id: "tx-5",
+    type: "Exchange",
+    status: "Completed",
+    amount: 800,
+    timestamp: new Date("2023-06-10T14:20:00"),
+  },
+  {
+    id: "tx-6",
+    type: "Chat",
+    status: "Completed",
+    amount: -100,
+    timestamp: new Date("2023-06-09T11:10:00"),
+  },
+  {
+    id: "tx-7",
+    type: "Deposit",
+    status: "Completed",
+    amount: 3000,
+    timestamp: new Date("2023-06-08T13:40:00"),
+  },
+  {
+    id: "tx-8",
+    type: "Exchange",
+    status: "Pending Calculation",
+    amount: -1200,
+    timestamp: new Date("2023-06-07T17:00:00"),
+  },
+  {
+    id: "tx-9",
+    type: "Chat",
+    status: "Completed",
+    amount: -180,
+    timestamp: new Date("2023-06-06T10:30:00"),
+  },
+  {
+    id: "tx-10",
+    type: "Deposit",
+    status: "Completed",
+    amount: 1500,
+    timestamp: new Date("2023-06-05T09:00:00"),
+  },
+]
 
 export default function TransactionHistory() {
   const [currentPage, setCurrentPage] = useState(1)
   const itemsPerPage = 5
+  const [isMounted, setIsMounted] = useState(false)
+
+  useEffect(() => {
+    setIsMounted(true)
+  }, [])
 
   // Calculate pagination
-  const totalPages = Math.ceil(mockTransactions.length / itemsPerPage)
+  const totalPages = Math.ceil(fixedTransactions.length / itemsPerPage)
   const startIndex = (currentPage - 1) * itemsPerPage
   const endIndex = startIndex + itemsPerPage
-  const currentTransactions = mockTransactions.slice(startIndex, endIndex)
+  const currentTransactions = fixedTransactions.slice(startIndex, endIndex)
 
   // Get icon based on transaction type
   const getTransactionIcon = (type: TransactionType) => {
@@ -111,6 +151,29 @@ export default function TransactionHistory() {
       hour: "2-digit",
       minute: "2-digit",
     })
+  }
+
+  // 如果组件未挂载，返回静态结构
+  if (!isMounted) {
+    return (
+      <div className="space-y-6">
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+          <h2 className="text-2xl font-bold">Transaction History</h2>
+          <div className="flex items-center gap-4">
+            <Badge variant="outline" className="border-purple-500 text-purple-400 px-3 py-1">
+              All Transactions
+            </Badge>
+          </div>
+        </div>
+
+        <Card className="bg-gray-900/50 border-gray-800 overflow-hidden">
+          <div className="p-6 flex justify-center items-center">
+            <div className="w-6 h-6 border-t-2 border-b-2 border-white rounded-full animate-spin mr-3"></div>
+            <span>Loading transactions...</span>
+          </div>
+        </Card>
+      </div>
+    )
   }
 
   return (

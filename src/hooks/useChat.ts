@@ -1,3 +1,5 @@
+"use client"
+
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { 
   getAllTherapists, 
@@ -31,6 +33,20 @@ interface ApiAgent {
   modelId: string;
 }
 
+// 用于生成消息ID的辅助函数，避免使用非确定性的Date.now()
+let messageIdCounter = 0;
+function generateMessageId(): string {
+  return `msg-${++messageIdCounter}`;
+}
+
+// 获取当前时间戳的函数，服务器端返回固定值，客户端返回实际时间
+function getCurrentTimestamp(): number {
+  if (typeof window === 'undefined') {
+    return 1687867800000; // 固定的时间戳，表示一个特定时间点
+  }
+  return Date.now();
+}
+
 export function useChat() {
   const [therapists, setTherapists] = useState<Therapist[]>([]);
   const [selectedTherapist, setSelectedTherapist] = useState<string | null>(null);
@@ -41,14 +57,22 @@ export function useChat() {
   const [isInitializing, setIsInitializing] = useState(false);
   // Add a new state to record which message is being loaded
   const [loadingMessageId, setLoadingMessageId] = useState<string | null>(null);
+  const [isMounted, setIsMounted] = useState(false);
   
   // Use ref to track which therapists have been attempted to connect
   const attemptedTherapistsRef = useRef<Set<string>>(new Set());
+
+  // 添加客户端挂载检查
+  useEffect(() => {
+    setIsMounted(true);
+  }, []);
   
   // Initialize: Get all therapists
   useEffect(() => {
+    if (!isMounted) return;
+    
     // Only get therapist list once when component is first mounted, no retries
-    let isMounted = true;
+    let isComponentMounted = true;
     
     async function fetchTherapists() {
       try {
@@ -59,7 +83,7 @@ export function useChat() {
         const response = await getAllTherapists();
         
         // Ensure component is still mounted
-        if (!isMounted) return;
+        if (!isComponentMounted) return;
         
         console.log("Successfully fetched therapist list");
         
@@ -109,11 +133,11 @@ export function useChat() {
           setError('No available therapists found');
         }
       } catch (err) {
-        if (!isMounted) return;
+        if (!isComponentMounted) return;
         console.error('Failed to fetch therapist list:', err);
         setError('Unable to get therapist list');
       } finally {
-        if (isMounted) {
+        if (isComponentMounted) {
           setIsLoading(false);
         }
       }
@@ -123,12 +147,14 @@ export function useChat() {
     
     // Cleanup function to prevent setting state after component unmounts
     return () => {
-      isMounted = false;
+      isComponentMounted = false;
     };
-  }, []); // Empty dependency array, ensure it runs only once
+  }, [isMounted]); // 添加isMounted依赖
   
   // When therapist is selected, initialize conversation but ensure no automatic retries
   useEffect(() => {
+    if (!isMounted) return;
+    
     // Avoid repeated initialization
     if (isInitializing) return;
     
@@ -165,12 +191,12 @@ export function useChat() {
         
         // Add welcome message
         const welcomeMessage: Message = {
-          id: `msg-${Date.now()}`,
+          id: generateMessageId(),
           role: 'assistant',
           content: therapistInfo 
             ? `Hello! I'm ${therapistInfo.name}. How are you feeling today?` 
             : `Hello! I'm your psychological consultant. How are you feeling today?`,
-          timestamp: Date.now()
+          timestamp: getCurrentTimestamp()
         };
         
         console.log("Adding welcome message:", welcomeMessage.content);
@@ -187,7 +213,7 @@ export function useChat() {
     // Initialize with the current selected therapist
     initConversation();
     
-  }, [selectedTherapist, therapists]); // Only depend on therapist selection change
+  }, [selectedTherapist, therapists, isMounted, isInitializing]); // 添加isMounted依赖
   
   // Send message
   const sendUserMessage = useCallback(async (content: string) => {
@@ -214,22 +240,22 @@ export function useChat() {
       
       // Add user message to list
       const userMessage: Message = {
-        id: `msg-${Date.now()}`,
+        id: generateMessageId(),
         role: 'user',
         content,
-        timestamp: Date.now()
+        timestamp: getCurrentTimestamp()
       };
       
       console.log(`Sending user message: "${content.substring(0, 30)}${content.length > 30 ? '...' : ''}"`);
       setMessages(prev => [...prev, userMessage]);
       
       // Create an empty reply message as Loading status
-      const assistantMessageId = `msg-${Date.now() + 1}`;
+      const assistantMessageId = generateMessageId();
       const assistantMessage: Message = {
         id: assistantMessageId,
         role: 'assistant',
         content: '',
-        timestamp: Date.now() + 1
+        timestamp: getCurrentTimestamp() + 1
       };
       
       // Add empty reply message to list and set as loading status
@@ -428,12 +454,12 @@ export function useChat() {
       
       // Add welcome message
       const welcomeMessage: Message = {
-        id: `msg-${Date.now()}`,
+        id: generateMessageId(),
         role: 'assistant',
         content: therapistInfo 
           ? `Hello! I'm ${therapistInfo.name}. How are you feeling today?` 
           : `Hello! I'm your psychological consultant. How are you feeling today?`,
-        timestamp: Date.now()
+        timestamp: getCurrentTimestamp()
       };
       
       console.log("Adding welcome message for new consultation:", welcomeMessage.content);
